@@ -19,7 +19,7 @@ Cu.import("resource://gre/modules/PrivateBrowsingUtils.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
 
 // These mirror signon.* prefs.
-var gEnabled, gDebug, gAutofillForms, gStoreWhenAutocompleteOff;
+var gEnabled, gDebug, gAutofillForms, gStoreWhenAutocompleteOff, gExperimentalFormDetect;
 
 function log(...pieces) {
   function generateLogMessage(args) {
@@ -78,6 +78,7 @@ var observer = {
     gEnabled = Services.prefs.getBoolPref("signon.rememberSignons");
     gAutofillForms = Services.prefs.getBoolPref("signon.autofillForms");
     gStoreWhenAutocompleteOff = Services.prefs.getBoolPref("signon.storeWhenAutocompleteOff");
+    gExperimentalFormDetect = Services.prefs.getBoolPref("signon.experimentalFormDetect");
   },
 };
 
@@ -121,6 +122,8 @@ var LoginManagerContent = {
 
   // Number of outstanding requests to each manager.
   _managers: new Map(),
+
+  _documents: new Map(),
 
   _takeRequest: function(msg) {
     let data = msg.data;
@@ -225,6 +228,34 @@ var LoginManagerContent = {
     return this._sendRequest(messageManager, requestData,
                              "RemoteLogins:autoCompleteLogins",
                              messageData);
+  },
+
+  mutationObserverCallback: function(mutations) {
+    mutations.forEach(function(mutation) {
+      var removedNodes = Array.prototype.slice.call(mutation.removedNodes || []),
+          addedNodes = Array.prototype.slice.call(mutation.addedNodes || []);
+      if (mutation.type === "childList") {
+        this.visitSubscribersForNodes(subscribers.isRemoved, removedNodes);
+        this.visitSubscribersForNodes(subscribers.addedNodes, addedNodes);
+      }
+    }, this);
+  },
+
+  onPageShow: function (event) {
+    let document = event.target;
+    let mutationObserver = new document.window.mutationObserver(this.mutationObserverCallback.bind(this));
+    mutationObserver.observe(document, { childList: true, subtree: true });
+    this._documents.set(document, { mutationObserver: mutationObserver });
+  },
+
+  onPageHide: function (event) {
+    let document = event.target;
+    let documentInfo = this._documents.get(document);
+    if (documentInfo) {
+      documentInfo.mutationObserver.disconnect();
+    }
+    this._documents.delete(document);
+    log("onPageHide for", document.documentURI);
   },
 
   /*

@@ -123,6 +123,12 @@ addEventListener("DOMFormHasPassword", function(event) {
 addEventListener("DOMAutoComplete", function(event) {
   LoginManagerContent.onUsernameInput(event);
 });
+addEventListener("pageshow", function (event) {
+  LoginManagerContent.onPageShow(event);
+});
+addEventListener("pagehide", function (event) {
+  LoginManagerContent.onPageHide(event);
+});
 addEventListener("blur", function(event) {
   LoginManagerContent.onUsernameInput(event);
 });

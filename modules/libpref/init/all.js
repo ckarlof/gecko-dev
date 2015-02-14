@@ -3709,6 +3709,7 @@ pref("signon.autofillForms",                true);
 pref("signon.autologin.proxy",              false);
 pref("signon.storeWhenAutocompleteOff",     true);
 pref("signon.debug",                        false);
+pref("signon.experimentalFormDetect",       false);
 
 // Satchel (Form Manager) prefs
 pref("browser.formfill.debug",            false);
